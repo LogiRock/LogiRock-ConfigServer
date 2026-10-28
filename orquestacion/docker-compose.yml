@@ -1,0 +1,148 @@
+networks:
+  logirock-net:
+    driver: bridge
+
+services:
+  # ==========================================
+  # 1. BASES DE DATOS (Con Healthchecks)
+  # ==========================================
+  shipment-mysql:
+    image: mysql:8.1
+    container_name: shipment-mysql
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MYSQL_DATABASE: shipment_db
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3308:3306"
+    networks:
+      - logirock-net
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  courier-mysql:
+    image: mysql:8.1
+    container_name: courier-mysql
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MYSQL_DATABASE: courier_db
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3309:3306"
+    networks:
+      - logirock-net
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  security-mysql:
+    image: mysql:8.1
+    container_name: security-mysql
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MYSQL_DATABASE: security_db
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3310:3306"
+    networks:
+      - logirock-net
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ==========================================
+  # 2. SERVIDOR DE CONFIGURACIÓN
+  # ==========================================
+  config-server:
+    image: logirockjujuy/config-server:v2.0.0
+    container_name: config-server
+    restart: unless-stopped
+    environment:
+      PORT: 8088
+      GIT_URI: https://github.com/LogiRock/config-server.git
+      GIT_BRANCH: main
+      SPRING_CLOUD_CONFIG_SERVER_GIT_REFRESH_RATE: 60
+    ports:
+      - "8088:8088"
+    networks:
+      - logirock-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8088/application/default > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 15s
+      retries: 15
+      start_period: 60s
+
+  # ==========================================
+  # 3. MICROSERVICIOS
+  # ==========================================
+  shipment-service:
+    image: logirockjujuy/shipment-service:v1.0.0
+    container_name: shipment-service
+    ports:
+      - "8080:8080"
+    env_file: .env
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8088
+      - SPRING_DATASOURCE_URL=jdbc:mysql://shipment-mysql:3306/shipment_db
+      - COURIER_SERVICE_URL=http://courier-service:8082
+    networks:
+      - logirock-net
+    restart: on-failure
+    depends_on:
+      shipment-mysql:           
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+  courier-service:
+    image: logirockjujuy/courier-service:v1.0.0
+    container_name: courier-service
+    ports:
+      - "8082:8082" 
+    env_file: .env
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8088
+      - SPRING_DATASOURCE_URL=jdbc:mysql://courier-mysql:3306/courier_db
+      - SERVER_PORT=8082
+    networks:
+      - logirock-net
+    restart: on-failure
+    depends_on:
+      courier-mysql:
+        condition: service_healthy
+      config-server:
+        condition: service_started
+
+  security-service:
+    image: logirockjujuy/security-service:v1.0.0
+    container_name: security-service
+    ports:
+      - "8081:8081"
+    env_file: .env
+    environment:
+      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8088
+      - SPRING_DATASOURCE_URL=jdbc:mysql://security-mysql:3306/security_db
+    networks:
+      - logirock-net
+    restart: on-failure
+    depends_on:
+      security-mysql:
+        condition: service_healthy
+      config-server:
+        condition: service_started
