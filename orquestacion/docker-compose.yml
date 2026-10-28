@@ -130,7 +130,7 @@ services:
         condition: service_healthy
 
   security-service:
-    image: logirockjujuy/security-service:v1.0.0
+    image: logirockjujuy/security-service:v1.1.0
     container_name: security-service
     ports:
       - "8081:8081"
