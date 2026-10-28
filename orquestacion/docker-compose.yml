@@ -127,7 +127,7 @@ services:
       courier-mysql:
         condition: service_healthy
       config-server:
-        condition: service_started
+        condition: service_healthy
 
   security-service:
     image: logirockjujuy/security-service:v1.0.0
@@ -145,4 +145,4 @@ services:
       security-mysql:
         condition: service_healthy
       config-server:
-        condition: service_started
+        condition: service_healthy
