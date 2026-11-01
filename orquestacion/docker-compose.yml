@@ -76,7 +76,7 @@ services:
     environment:
       PORT: 8088
       GIT_URI: https://github.com/LogiRock/config-server.git
-      GIT_BRANCH: main
+      GIT_BRANCH: develop
       SPRING_CLOUD_CONFIG_SERVER_GIT_REFRESH_RATE: 60
     ports:
       - "8088:8088"
