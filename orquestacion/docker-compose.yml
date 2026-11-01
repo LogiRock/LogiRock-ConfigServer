@@ -76,7 +76,7 @@ services:
     environment:
       PORT: 8088
       GIT_URI: https://github.com/LogiRock/config-server.git
-      GIT_BRANCH: develop
+      GIT_BRANCH: ${CONFIG_GIT_BRANCH:-develop}
       SPRING_CLOUD_CONFIG_SERVER_GIT_REFRESH_RATE: 60
     ports:
       - "8088:8088"
@@ -100,6 +100,7 @@ services:
     env_file: .env
     environment:
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8088
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
       - SPRING_DATASOURCE_URL=jdbc:mysql://shipment-mysql:3306/shipment_db
       - COURIER_SERVICE_URL=http://courier-service:8082
     networks:
@@ -118,6 +119,7 @@ services:
     env_file: .env
     environment:
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8088
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
       - SPRING_DATASOURCE_URL=jdbc:mysql://courier-mysql:3306/courier_db
       - SERVER_PORT=8082
     networks:
@@ -137,6 +139,7 @@ services:
     env_file: .env
     environment:
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8088
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
       - SPRING_DATASOURCE_URL=jdbc:mysql://security-mysql:3306/security_db
     networks:
       - logirock-net
