@@ -90,62 +90,142 @@ services:
       start_period: 60s
 
   # ==========================================
-  # 3. MICROSERVICIOS
+  # 3. DESCUBRIMIENTO DE SERVICIOS (Eureka)
+  # ==========================================
+  eureka-server:
+    image: logirockjujuy/eureka-server:v1.0.0
+    container_name: eureka-server
+    restart: unless-stopped
+    environment:
+      - CONFIG_SERVER_URL=http://config-server:8088
+    ports:
+      - "8065:8065"
+    networks:
+      - logirock-net
+    depends_on:
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8065/actuator/health | grep -q UP || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 40s
+
+  # ==========================================
+  # 4. MICROSERVICIOS
   # ==========================================
   shipment-service:
-    image: logirockjujuy/shipment-service:v1.0.0
+    image: logirockjujuy/shipment-service:v2.0.0
     container_name: shipment-service
-    ports:
-      - "8080:8080"
+    restart: on-failure
     env_file: .env
     environment:
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8088
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
       - SPRING_DATASOURCE_URL=jdbc:mysql://shipment-mysql:3306/shipment_db
-      - COURIER_SERVICE_URL=http://courier-service:8082
+      - EUREKA_URL=http://eureka-server:8065/eureka/
+    ports:
+      - "8080:8080"   # Swagger para la review
     networks:
       - logirock-net
-    restart: on-failure
     depends_on:
-      shipment-mysql:           
+      shipment-mysql:
         condition: service_healthy
       config-server:
         condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
   courier-service:
-    image: logirockjujuy/courier-service:v1.0.0
+    image: logirockjujuy/courier-service:v2.0.0
     container_name: courier-service
-    ports:
-      - "8082:8082" 
+    restart: on-failure
     env_file: .env
     environment:
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8088
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
       - SPRING_DATASOURCE_URL=jdbc:mysql://courier-mysql:3306/courier_db
-      - SERVER_PORT=8082
+      - EUREKA_URL=http://eureka-server:8065/eureka/
+    ports:
+      - "8082:8082"   # Swagger para la review
     networks:
       - logirock-net
-    restart: on-failure
     depends_on:
       courier-mysql:
         condition: service_healthy
       config-server:
         condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health | grep -q UP || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
 
   security-service:
-    image: logirockjujuy/security-service:v1.1.0
+    image: logirockjujuy/security-service:v2.0.0
     container_name: security-service
-    ports:
-      - "8081:8081"
+    restart: on-failure
     env_file: .env
     environment:
       - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8088
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
       - SPRING_DATASOURCE_URL=jdbc:mysql://security-mysql:3306/security_db
+      - EUREKA_URL=http://eureka-server:8065/eureka/
+    ports:
+      - "8081:8081"   # Swagger para la review
     networks:
       - logirock-net
-    restart: on-failure
     depends_on:
       security-mysql:
         condition: service_healthy
       config-server:
         condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health | grep -q UP || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  # ==========================================
+  # 5. API GATEWAY (puerta de entrada única)
+  # ==========================================
+  api-gateway:
+    image: logirockjujuy/api-gateway:v1.0.0
+    container_name: api-gateway
+    restart: on-failure
+    environment:
+      - CONFIG_SERVER_URL=http://config-server:8088
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
+      - EUREKA_URL=http://eureka-server:8065/eureka/
+    ports:
+      - "8066:8066"
+    networks:
+      - logirock-net
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      shipment-service:
+        condition: service_healthy
+      courier-service:
+        condition: service_healthy
+      security-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8066/actuator/health | grep -q UP || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 40s
