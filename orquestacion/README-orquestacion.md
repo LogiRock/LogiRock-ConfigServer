@@ -1,13 +1,13 @@
 # LogiRock: levantar el proyecto completo con Docker
 
-Con esta guía levantás los 7 contenedores del proyecto (3 MySQL, config-server, security, courier y shipment) con un solo comando. Las imágenes se descargan de Docker Hub, así que no hace falta compilar nada.
+Con esta guía levantás los 9 contenedores del proyecto (3 MySQL, config-server, eureka-server, security, courier, shipment y api-gateway) con un solo comando. Las imágenes se descargan de Docker Hub, así que no hace falta compilar nada.
 
 ## 1. Requisitos
 
 - **Docker Desktop** instalado y abierto (la ballena en verde). En Windows, con WSL 2.
 - **Git**.
 - Al menos **5 GB libres** en disco.
-- Estos puertos libres en tu PC: `8080`, `8081`, `8082`, `8088`, `3308`, `3309` y `3310`. Si tenés un MySQL local en esos puertos, apagalo.
+- Estos puertos libres en tu PC: `8065`, `8066`, `8080`, `8081`, `8082`, `8088`, `3308`, `3309` y `3310`. Si tenés un MySQL local en esos puertos, apagalo.
 
 ## 2. Descargar el repo
 
@@ -55,7 +55,7 @@ docker compose pull
 docker compose up -d
 ```
 
-La primera vez tarda unos minutos, porque descarga las imágenes y los MySQL inicializan sus bases. Compose espera a que las bases y el config-server estén sanos antes de arrancar los servicios.
+La primera vez tarda unos minutos, porque descarga las imágenes y los MySQL inicializan sus bases. Los contenedores arrancan en orden y cada uno espera a que el anterior esté sano: bases y config-server → eureka-server → servicios → api-gateway.
 
 ## 5. Verificar
 
@@ -63,14 +63,27 @@ La primera vez tarda unos minutos, porque descarga las imágenes y los MySQL ini
 docker compose ps
 ```
 
-Los 7 tienen que estar `Up`, y los MySQL y el config-server además con `(healthy)`.
+Los 9 tienen que estar `Up (healthy)`. La primera vez puede tardar 2 o 3 minutos.
 
 | Servicio | URL |
 |---|---|
+| **API Gateway (entrada única)** | http://localhost:8066/application/... |
+| Rutas del Gateway | http://localhost:8066/actuator/gateway/routes |
+| Eureka (dashboard) | http://localhost:8065 |
 | shipment-service | http://localhost:8080/swagger-ui.html |
-| security-service | http://localhost:8081 |
 | courier-service | http://localhost:8082/swagger-ui.html |
-| config-server | http://localhost:8088/security-service/default |
+| security-service | http://localhost:8081 |
+| config-server | http://localhost:8088/shipment-service/dev |
+
+Rutas del Gateway:
+
+| Ruta | Servicio |
+|---|---|
+| `/application/auth/**` | security-service |
+| `/application/shipments/**` | shipment-service |
+| `/application/couriers/**` | courier-service |
+
+Ejemplo: `POST http://localhost:8066/application/auth/api/auth/login`
 
 Para ver el log de un servicio: `docker logs -f shipment-service` (salís con Ctrl+C).
 
@@ -87,6 +100,7 @@ Para ver el log de un servicio: `docker logs -f shipment-service` (salís con Ct
 
 - **`dependency failed to start: container config-server is unhealthy`**: suele pasar en PCs lentas. Esperá un minuto y corré de nuevo `docker compose up -d`; solo arranca lo que falta.
 - **`Access denied for user`** en un servicio: cambiaste el `.env` después de que las bases ya se habían creado. Corré `docker compose down -v` y después `docker compose up -d`.
+- **El Gateway responde 503 justo después de levantar**: el Gateway actualiza la lista de Eureka cada 30 segundos. Esperá medio minuto y reintentá.
 - **`port is already allocated`**: algo en tu PC ya usa ese puerto (por ejemplo, un MySQL local). Apagalo y reintentá.
 - **`Could not resolve placeholder '...'`**: falta esa variable en tu `.env`.
 - **Docker se cuelga o da `500 Internal Server Error`**: casi siempre es falta de espacio en disco. Liberá espacio, corré `docker builder prune -f` y reiniciá Docker Desktop.
