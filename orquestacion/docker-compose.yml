@@ -203,13 +203,14 @@ services:
   # 5. API GATEWAY (puerta de entrada única)
   # ==========================================
   api-gateway:
-    image: logirockjujuy/api-gateway:v1.0.0
+    image: logirockjujuy/api-gateway:${API_GATEWAY_TAG:-v1.0.0}
     container_name: api-gateway
     restart: on-failure
     environment:
       - CONFIG_SERVER_URL=http://config-server:8088
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
       - EUREKA_URL=http://eureka-server:8065/eureka/
+      - FRONTEND_ORIGINS=${FRONTEND_ORIGINS:-http://localhost:5173,http://localhost:3000}
     ports:
       - "8066:8066"
     networks:
