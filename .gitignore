@@ -33,3 +33,5 @@ build/
 .vscode/
 
 .env
+
+orquestacion/docker-compose.local.yml
