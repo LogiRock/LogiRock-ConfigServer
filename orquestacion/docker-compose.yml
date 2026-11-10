@@ -116,7 +116,7 @@ services:
   # 4. MICROSERVICIOS
   # ==========================================
   shipment-service:
-    image: logirockjujuy/shipment-service:v2.0.0
+    image: logirockjujuy/shipment-service:v2.0.1
     container_name: shipment-service
     restart: on-failure
     env_file: .env
@@ -144,7 +144,7 @@ services:
       start_period: 60s
 
   courier-service:
-    image: logirockjujuy/courier-service:v2.0.0
+    image: logirockjujuy/courier-service:v2.0.1
     container_name: courier-service
     restart: on-failure
     env_file: .env
