@@ -35,3 +35,4 @@ build/
 .env
 
 orquestacion/docker-compose.local.yml
+orquestacion/docker-compose.local.yaml

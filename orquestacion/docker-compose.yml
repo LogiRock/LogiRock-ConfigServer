@@ -118,10 +118,12 @@ services:
   shipment-service:
     image: logirockjujuy/shipment-service:v2.0.1
     container_name: shipment-service
-    restart: on-failure
+    restart: unless-stopped
     env_file: .env
     environment:
-      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8088
+      - SPRING_CONFIG_IMPORT=configserver:http://config-server:8088
+      - CONFIG_SERVER_URL=http://config-server:8088
+      - SPRING_CLOUD_CONFIG_FAILFAST=true
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
       - SPRING_DATASOURCE_URL=jdbc:mysql://shipment-mysql:3306/shipment_db
       - EUREKA_URL=http://eureka-server:8065/eureka/
@@ -146,10 +148,12 @@ services:
   courier-service:
     image: logirockjujuy/courier-service:v2.0.1
     container_name: courier-service
-    restart: on-failure
+    restart: unless-stopped
     env_file: .env
     environment:
-      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8088
+      - SPRING_CONFIG_IMPORT=configserver:http://config-server:8088
+      - CONFIG_SERVER_URL=http://config-server:8088
+      - SPRING_CLOUD_CONFIG_FAILFAST=true
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
       - SPRING_DATASOURCE_URL=jdbc:mysql://courier-mysql:3306/courier_db
       - EUREKA_URL=http://eureka-server:8065/eureka/
@@ -174,10 +178,12 @@ services:
   security-service:
     image: logirockjujuy/security-service:v2.0.0
     container_name: security-service
-    restart: on-failure
+    restart: unless-stopped
     env_file: .env
     environment:
-      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8088
+      - SPRING_CONFIG_IMPORT=configserver:http://config-server:8088
+      - CONFIG_SERVER_URL=http://config-server:8088
+      - SPRING_CLOUD_CONFIG_FAILFAST=true
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
       - SPRING_DATASOURCE_URL=jdbc:mysql://security-mysql:3306/security_db
       - EUREKA_URL=http://eureka-server:8065/eureka/
@@ -205,8 +211,10 @@ services:
   api-gateway:
     image: logirockjujuy/api-gateway:${API_GATEWAY_TAG:-v1.0.0}
     container_name: api-gateway
-    restart: on-failure
+    restart: unless-stopped
     environment:
+      - SPRING_CONFIG_IMPORT=configserver:http://config-server:8088
+      - SPRING_CLOUD_CONFIG_FAILFAST=true
       - CONFIG_SERVER_URL=http://config-server:8088
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE:-dev}
       - EUREKA_URL=http://eureka-server:8065/eureka/
@@ -216,6 +224,8 @@ services:
     networks:
       - logirock-net
     depends_on:
+      config-server:
+        condition: service_healthy
       eureka-server:
         condition: service_healthy
       shipment-service:
@@ -230,3 +240,24 @@ services:
       timeout: 5s
       retries: 15
       start_period: 40s
+
+  # ==========================================
+  # 6. FRONTEND (SPA React servida por Nginx)
+  # ==========================================
+  logitrack-frontend:
+    image: logirockjujuy/logitrack-frontend:${FRONTEND_TAG:-v1.0.0}
+    container_name: logitrack-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:8080"   # Nginx sin privilegios escucha en 8080 adentro del contenedor
+    networks:
+      - logirock-net
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s

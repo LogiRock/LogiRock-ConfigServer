@@ -1,13 +1,13 @@
 # LogiRock: levantar el proyecto completo con Docker
 
-Con esta guía levantás los 9 contenedores del proyecto (3 MySQL, config-server, eureka-server, security, courier, shipment y api-gateway) con un solo comando. Las imágenes se descargan de Docker Hub, así que no hace falta compilar nada.
+Con esta guía levantás los 10 contenedores del proyecto (3 MySQL, config-server, eureka-server, security, courier, shipment y api-gateway) con un solo comando. Las imágenes se descargan de Docker Hub, así que no hace falta compilar nada.
 
 ## 1. Requisitos
 
 - **Docker Desktop** instalado y abierto (la ballena en verde). En Windows, con WSL 2.
 - **Git**.
 - Al menos **5 GB libres** en disco.
-- Estos puertos libres en tu PC: `8065`, `8066`, `8080`, `8081`, `8082`, `8088`, `3308`, `3309` y `3310`. Si tenés un MySQL local en esos puertos, apagalo.
+- Estos puertos libres en tu PC: `3000`,`8065`,`8066`, `8080`, `8081`, `8082`, `8088`, `3308`, `3309` y `3310`. Si tenés un MySQL local en esos puertos, apagalo.
 
 ## 2. Descargar el repo
 
@@ -74,6 +74,8 @@ Los 9 tienen que estar `Up (healthy)`. La primera vez puede tardar 2 o 3 minutos
 | courier-service | http://localhost:8082/swagger-ui.html |
 | security-service | http://localhost:8081 |
 | config-server | http://localhost:8088/shipment-service/dev |
+| **Frontend (la app)** | **http://localhost:3000** |
+
 
 Rutas del Gateway:
 
@@ -83,9 +85,21 @@ Rutas del Gateway:
 | `/application/shipments/**` | shipment-service |
 | `/application/couriers/**` | courier-service |
 
+
 Ejemplo: `POST http://localhost:8066/application/auth/api/auth/login`
 
 Para ver el log de un servicio: `docker logs -f shipment-service` (salís con Ctrl+C).
+
+## Usuarios de prueba
+
+- **ADMIN:** lo crea security-service al arrancar, con `ADMIN_USERNAME` y `ADMIN_PASSWORD` de tu `.env`.
+- **CLIENTE:** desde la pantalla de login, con "Crear cuenta de cliente".
+- **REPARTIDOR:** lo da de alta un ADMIN desde Repartidores, con usuario y contraseña.
+
+## Desarrollo del front
+
+Con el compose levantado, `npm run dev` en `logitrack-frontend` (puerto 5173). El gateway ya permite ese origen por CORS.
+Si el gateway da 404 en todo, arrancó sin su configuración. Con el fail-fast no debería pasar más, pero se arregla con `docker compose up -d --no-deps --force-recreate api-gateway`.
 
 ## 6. Uso diario
 
